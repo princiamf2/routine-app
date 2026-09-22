@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Colors } from "@/constants/theme";
 import { KeyboardAvoidingView, Platform, ScrollView, View, Text, Pressable, StyleSheet, TextInput } from "react-native";
 import Slider from "@react-native-community/slider";
@@ -14,31 +14,61 @@ export default function FeedbackScreen() {
   const isPreviewMode = params.preview === "true";
   const [feedback, setFeedback] = useState(5);
   const [feedbackText, setFeedbackText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const submittingRef = useRef(false);
+  const completionSentRef = useRef(false);
 
   async function finishDay() {
-    if (!isPreviewMode) {
-      const alreadyDone = await hasCompletedToday();
-      if (alreadyDone) {
-        router.replace("/");
+    if (submittingRef.current) return;
+
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      if (!isPreviewMode) {
+        const alreadyDone = await hasCompletedToday();
+
+        if (alreadyDone) {
+          router.replace("/");
+          return;
+        }
+
+        if (!completionSentRef.current) {
+          await sendActionCompletedEvent(feedback, feedbackText);
+          completionSentRef.current = true;
+        }
+
+        await markCompletedToday();
+      }
+
+      const analysis = analyzeMovementMessage(feedbackText);
+
+      if (analysis.level === "red") {
+        router.replace("/therapists");
         return;
       }
-      await markCompletedToday();
-      await sendActionCompletedEvent(feedback, feedbackText);
-    }
 
-    const analysis = analyzeMovementMessage(feedbackText);
-    if (analysis.level === "red") {
-      router.replace("/therapists");
-      return;
-    }
+      router.replace({
+        pathname: "/success",
+        params: {
+          day: previewDay ?? "",
+          preview: isPreviewMode ? "true" : "false",
+        },
+      });
+    } catch (error) {
+      console.log("Erreur validation du ressenti:", error);
 
-    router.replace({
-      pathname: "/success",
-      params: {
-        day: previewDay ?? "",
-        preview: isPreviewMode ? "true" : "false",
-      },
-    });
+      setSubmitError(
+        completionSentRef.current
+          ? "La séance a été reçue par le serveur, mais la confirmation locale a échoué. Réessaie pour terminer."
+          : "La validation n’a pas pu être confirmée. Vérifie ta connexion et réessaie."
+      );
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -69,6 +99,7 @@ export default function FeedbackScreen() {
             minimumTrackTintColor={Colors.light.primary}
             maximumTrackTintColor={Colors.light.soft}
             thumbTintColor={Colors.light.primary}
+            disabled={isSubmitting || completionSentRef.current}
           />
 
           <Text style={styles.scoreHint}>
@@ -88,14 +119,29 @@ export default function FeedbackScreen() {
             value={feedbackText}
             onChangeText={setFeedbackText}
             multiline
+            editable={!isSubmitting && !completionSentRef.current}
           />
         </View>
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(300).duration(500)}>
-        <Pressable style={styles.primaryButton} onPress={finishDay}>
+        {submitError !== "" && (
+          <Text accessibilityRole="alert" style={styles.submitError}>
+            {submitError}
+          </Text>
+        )}
+
+        <Pressable
+          style={styles.primaryButton}
+          onPress={finishDay}
+          disabled={isSubmitting}
+        >
           <Text style={styles.buttonText}>
-            {isPreviewMode ? "Continuer la prévisualisation" : "Valider mon ressenti"}
+            {isSubmitting
+              ? "Validation en cours…"
+              : isPreviewMode
+                ? "Continuer la prévisualisation"
+                : "Valider mon ressenti"}
           </Text>
         </Pressable>
       </Animated.View>
@@ -208,5 +254,13 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 70,
     paddingBottom: 40,
+  },
+
+  submitError: {
+    color: "#B42318",
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
+    textAlign: "center",
   },
 });
