@@ -7,7 +7,8 @@ import { Colors } from "@/constants/theme";
 
 export default function StatsScreen() {
   const [analytics, setAnalytics] = useState<any>(null);
-  const completedDays = analytics?.activeDays ?? 0;
+  const completedDays = Math.min(30, analytics?.activeDays ?? 0);
+  const progressPercent = analytics?.regularityPercent ?? 0;
   const streak = analytics?.streak ?? 0;
 
   async function loadAnalytics() {
@@ -31,7 +32,7 @@ export default function StatsScreen() {
         <AnimatedCircularProgress
           size={220}
           width={18}
-          fill={(completedDays / 30) * 100}
+          fill={progressPercent}
           tintColor={Colors.light.primary}
           backgroundColor={Colors.light.soft}
           rotation={0}

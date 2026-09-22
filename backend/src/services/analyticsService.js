@@ -32,9 +32,9 @@ function calculateStreak(dates, today) {
 }
 
 function buildUserAnalytics(events, today = new Date().toISOString().slice(0, 10)) {
-    const completedDates = getCompledActionDates(events);
+    const completedDates = getCompledActionDates(events).filter((date) => date <= today);
     const activeDays = completedDates.length;
-    const regularityPercent = Math.round((activeDays / 30) * 100);
+    const regularityPercent = Math.min(100, Math.round((activeDays / 30) * 100));
     const streak = calculateStreak(completedDates, today);
     const totalOpenCount = events.filter((event) => event.appOpened).length;
     const opensToday = events.filter((event) => {
