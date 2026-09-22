@@ -27,6 +27,8 @@ export type AdaptiveSession = {
 };
 
 export async function fetchAdaptiveSession(day: number): Promise<AdaptiveSession> {
+  if (!Number.isSafeInteger(day) || day < 1)
+    throw new Error("Le jour doit être un entier positif valide.");
   const deviceId = await getDeviceId();
 
   const response = await fetch(`${API_URL}/adaptive-session/${deviceId}?day=${day}`);
