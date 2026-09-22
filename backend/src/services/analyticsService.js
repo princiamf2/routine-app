@@ -43,10 +43,31 @@ function buildUserAnalytics(events) {
     const opensToday = events.filter((event) => {
         return event.appOpened && event.date === today;
     }).length;
-    const feedbackValues = events.filter((event) => event.feedbackValue !== null).map((event) => event.feedbackValue);
-    const feedbackAverage = feedbackValues.length === 0 ? null : Math.round(
-        feedbackValues.reduce((sum, value) => sum + value, 0) / feedbackValues.length
-    );
+    const feedbackEvents = events.filter((event) => {
+        const completed =
+            event.actionCompleted === true || event.actionCompleted === 1;
+
+        return (
+            completed &&
+            Number.isInteger(event.feedbackValue) &&
+            event.feedbackValue >= 1 &&
+            event.feedbackValue <= 10
+        );
+    });
+    const feedbackValues = feedbackEvents.map((event) => event.feedbackValue);
+    const feedbackAverage = feedbackValues.length === 0
+        ? null
+        : Math.round(
+            feedbackValues.reduce((sum, value) => sum + value, 0) /
+            feedbackValues.length
+        );
+    const latestFeedbackEvent = feedbackEvents.reduce((latest, event) => {
+        if (latest === null || event.id > latest.id) {
+            return event;
+        }
+        return latest;
+    }, null);
+    const latestFeedback = latestFeedbackEvent?.feedbackValue ?? null;
 
     return {
         activeDays,
@@ -55,6 +76,7 @@ function buildUserAnalytics(events) {
         totalOpenCount,
         opensToday,
         feedbackAverage,
+        latestFeedback,
         completedDates,
     };
 }

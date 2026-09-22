@@ -49,22 +49,22 @@ function getProgression(streak) {
     };
 }
 
-function adjustProgressionByFeedback(progression, feedbackAverage) {
-  if (feedbackAverage === null || feedbackAverage === undefined) {
+function adjustProgressionByFeedback(progression, latestFeedback) {
+  if (latestFeedback === null || latestFeedback === undefined) {
     return progression;
   }
 
-  if (feedbackAverage <= 4) {
+  if (latestFeedback <= 4) {
     return {
       ...progression,
       reps: Math.max(5, Math.round(progression.reps * 0.7)),
       series: Math.max(1, progression.series - 1),
       rest: "3 min",
-      note: "Séance allégée car la moyenne des ressentis indique une difficulté.",
+      note: "Séance allégée car le dernier ressenti indique une difficulté.",
     };
   }
 
-  if (feedbackAverage <= 7) {
+  if (latestFeedback <= 7) {
     return {
       ...progression,
       reps: Math.max(6, Math.round(progression.reps * 0.85)),
@@ -86,16 +86,16 @@ function mixExercisesByDay(exercises, day) {
   return variants[(day - 1) % variants.length];
 }
 
-function limitLevelsByFeedback(allowedLevels, feedbackAverage) {
-  if (feedbackAverage === null || feedbackAverage === undefined) {
+function limitLevelsByFeedback(allowedLevels, latestFeedback) {
+  if (latestFeedback === null || latestFeedback === undefined) {
     return allowedLevels;
   }
 
-  if (feedbackAverage <= 4) {
+  if (latestFeedback <= 4) {
     return ["green"];
   }
 
-  if (feedbackAverage <= 7) {
+  if (latestFeedback <= 7) {
     if (allowedLevels.includes("red")) {
       return ["orange"];
     }
@@ -108,10 +108,10 @@ function limitLevelsByFeedback(allowedLevels, feedbackAverage) {
   return allowedLevels;
 }
 
-function buildAdaptiveSession(streak, day, feedbackAverage) {
+function buildAdaptiveSession(streak, day, latestFeedback) {
   const allExercises = getAllExercises();
   const streakLevels = getAllowedLevels(streak);
-  const allowedLevels = limitLevelsByFeedback(streakLevels, feedbackAverage);
+  const allowedLevels = limitLevelsByFeedback(streakLevels, latestFeedback);
 
   const greenExercises = allExercises.filter((exercise) => exercise.level === "green");
   const orangeExercises = allExercises.filter((exercise) => exercise.level === "orange");
@@ -150,13 +150,13 @@ function buildAdaptiveSession(streak, day, feedbackAverage) {
   const progression = getProgression(streak);
   const adjustedProgression = adjustProgressionByFeedback(
     progression,
-    feedbackAverage
+    latestFeedback
   );
 
   return {
     streak,
     day,
-    feedbackAverage,
+    latestFeedback,
     allowedLevels,
     progression: adjustedProgression,
     exercises: selectedExercises,

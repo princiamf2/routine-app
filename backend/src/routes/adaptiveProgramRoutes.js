@@ -11,11 +11,12 @@ router.get("/:userId", (req, res) => {
 
     const events = getEventsByUserId(userId);
     const analytics = buildUserAnalytics(events);
-    const session = buildAdaptiveSession(analytics.streak, day, analytics.feedbackAverage);
+    const session = buildAdaptiveSession(analytics.streak, day, analytics.latestFeedback);
 
     res.json({
         success: true,
         ...session,
+        feedbackAverage: analytics.feedbackAverage,
     });
 });
 

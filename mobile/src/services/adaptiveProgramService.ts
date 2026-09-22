@@ -14,6 +14,7 @@ export type AdaptiveSession = {
   streak: number;
   day: number;
   feedbackAverage: number | null;
+  latestFeedback: number | null;
   allowedLevels: string[];
   progression: {
     label: string;
