@@ -54,17 +54,17 @@ function adjustProgressionByFeedback(progression, feedbackAverage) {
     return progression;
   }
 
-  if (feedbackAverage >= 7) {
+  if (feedbackAverage <= 4) {
     return {
       ...progression,
       reps: Math.max(5, Math.round(progression.reps * 0.7)),
       series: Math.max(1, progression.series - 1),
       rest: "3 min",
-      note: "Séance allégée car le dernier ressenti est élevé.",
+      note: "Séance allégée car la moyenne des ressentis indique une difficulté.",
     };
   }
 
-  if (feedbackAverage >= 4) {
+  if (feedbackAverage <= 7) {
     return {
       ...progression,
       reps: Math.max(6, Math.round(progression.reps * 0.85)),
@@ -91,11 +91,11 @@ function limitLevelsByFeedback(allowedLevels, feedbackAverage) {
     return allowedLevels;
   }
 
-  if (feedbackAverage >= 7) {
+  if (feedbackAverage <= 4) {
     return ["green"];
   }
 
-  if (feedbackAverage >= 4) {
+  if (feedbackAverage <= 7) {
     if (allowedLevels.includes("red")) {
       return ["orange"];
     }
