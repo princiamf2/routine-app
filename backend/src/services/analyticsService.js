@@ -12,34 +12,31 @@ function getCompledActionDates(events) {
     return dates;
 }
 
-function calculateStreak(dates) {
-  if (dates.length === 0) return 0;
-
-  let streak = 1;
-
-  for (let i = dates.length - 1; i > 0; i--) {
-    const current = new Date(dates[i]);
-    const previous = new Date(dates[i - 1]);
-
-    const diff = (current - previous) / (1000 * 60 * 60 * 24);
-
-    if (diff === 1) {
-      streak++;
-    } else {
-      break;
+function calculateStreak(dates, today) {
+    const completedDates = dates.filter((date) => date <= today);
+    if (completedDates.length === 0) return 0;
+    const dayInMs = 24 * 60 * 60 * 1000;
+    const lastDate = completedDates[completedDates.length - 1];
+    const daysSinceLastCompletion =
+        (new Date(today) - new Date(lastDate)) / dayInMs;
+    if (daysSinceLastCompletion > 1) return 0;
+    let streak = 1;
+    for (let i = completedDates.length - 1; i > 0; i--) {
+        const difference =
+            (new Date(completedDates[i]) -
+                new Date(completedDates[i - 1])) / dayInMs;
+        if (difference !== 1) break;
+        streak++;
     }
-  }
-
-  return streak;
+    return streak;
 }
 
-function buildUserAnalytics(events) {
+function buildUserAnalytics(events, today = new Date().toISOString().slice(0, 10)) {
     const completedDates = getCompledActionDates(events);
     const activeDays = completedDates.length;
     const regularityPercent = Math.round((activeDays / 30) * 100);
-    const streak = calculateStreak(completedDates);
+    const streak = calculateStreak(completedDates, today);
     const totalOpenCount = events.filter((event) => event.appOpened).length;
-    const today = new Date().toISOString().slice(0, 10);
     const opensToday = events.filter((event) => {
         return event.appOpened && event.date === today;
     }).length;
