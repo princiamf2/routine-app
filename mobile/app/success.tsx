@@ -5,6 +5,7 @@ import { Colors } from "@/constants/theme";
 
 export default function SuccessScreen() {
   const params = useLocalSearchParams();
+  const isPreviewMode = params.preview === "true";
   const day = params.day ? Number(params.day) : null;
 
   return (
@@ -21,12 +22,18 @@ export default function SuccessScreen() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(200).duration(500)}>
-        <Text style={styles.smallTitle}>Journée validée</Text>
+        <Text style={styles.smallTitle}>
+          {isPreviewMode ? "Prévisualisation terminée" : "Journée validée"}
+        </Text>
 
-        <Text style={styles.title}>Bravo, c’est fait</Text>
+        <Text style={styles.title}>
+          {isPreviewMode ? "Fin de l'aperçu" : "Bravo, c'est fait"}
+        </Text>
 
         <Text style={styles.subtitle}>
-          Tu as terminé ton activité du jour. Reviens demain pour continuer ta progression.
+          {isPreviewMode
+            ? "Tu as terminé la prévisualisation. Aucune séance ni aucun ressenti n'a été enregistré."
+            : "Tu as terminé ton activité du jour. Reviens demain pour continuer ta progression."}
         </Text>
 
         {day && (

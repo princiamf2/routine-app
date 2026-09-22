@@ -18,16 +18,14 @@ export default function FeedbackScreen() {
   async function finishDay() {
     if (!isPreviewMode) {
       const alreadyDone = await hasCompletedToday();
-
       if (alreadyDone) {
         router.replace("/");
         return;
       }
-
       await markCompletedToday();
+      await sendActionCompletedEvent(feedback, feedbackText);
     }
 
-    await sendActionCompletedEvent(feedback, feedbackText);
     const analysis = analyzeMovementMessage(feedbackText);
     if (analysis.level === "red") {
       router.replace("/therapists");
@@ -96,7 +94,9 @@ export default function FeedbackScreen() {
 
       <Animated.View entering={FadeInDown.delay(300).duration(500)}>
         <Pressable style={styles.primaryButton} onPress={finishDay}>
-          <Text style={styles.buttonText}>Valider mon ressenti</Text>
+          <Text style={styles.buttonText}>
+            {isPreviewMode ? "Continuer la prévisualisation" : "Valider mon ressenti"}
+          </Text>
         </Pressable>
       </Animated.View>
     </View>
