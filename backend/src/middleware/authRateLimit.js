@@ -28,8 +28,14 @@ const resendVerificationLimiter = createLimiter(
     "Trop de demandes de code. Réessaie plus tard."
 );
 
+const loginLimiter = createLimiter(
+    10,
+    "Trop de tentatives de connexion. Réessaie plus tard."
+);
+
 module.exports = {
     registrationLimiter,
     verifyEmailLimiter,
     resendVerificationLimiter,
+    loginLimiter,
 };

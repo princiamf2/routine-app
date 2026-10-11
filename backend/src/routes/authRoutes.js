@@ -1,8 +1,9 @@
 const express = require("express");
 const { validateRegistration } = require("../services/authValidationService");
-const { hashPassword } = require("../services/passwordService");
+const { hashPassword, verifyPassword } = require("../services/passwordService");
 const {
     findUserByEmail,
+    findUserById,
     createPatient,
 } = require("../data/usersStore");
 const {
@@ -13,9 +14,23 @@ const {
     registrationLimiter,
     verifyEmailLimiter,
     resendVerificationLimiter,
+    loginLimiter,
 } = require("../middleware/authRateLimit");
+const {
+    createAuthSession,
+} = require("../services/authSessionService");
 
 const router = express.Router();
+
+router.use((req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+});
+
+// Permet d'effectuer aussi le calcul scrypt pour une adresse inconnue.
+// Cette valeur fictive ne correspond à aucun compte.
+const DUMMY_PASSWORD_HASH =
+    `scrypt-v1$${"00".repeat(16)}$${"00".repeat(64)}`;
 
 function readEmail(body) {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -188,5 +203,70 @@ router.post(
         }
     }
 );
+
+router.post("/login", loginLimiter, async (req, res) => {
+    const email = readEmail(req.body);
+    const password = req.body?.password;
+
+    if (
+        !email ||
+        typeof password !== "string" ||
+        password.length === 0 ||
+        password.length > 256
+    ) {
+        return res.status(400).json({
+            success: false,
+            error: "Une adresse e-mail valide et un mot de passe sont requis.",
+        });
+    }
+
+    try {
+        const user = findUserByEmail(email);
+
+        const passwordMatches = await verifyPassword(
+            password,
+            user ? user.passwordHash : DUMMY_PASSWORD_HASH
+        );
+
+        if (!user || !passwordMatches) {
+            return res.status(401).json({
+                success: false,
+                error: "Adresse e-mail ou mot de passe incorrect.",
+            });
+        }
+
+        if (user.emailVerifiedAt === null) {
+            return res.status(403).json({
+                success: false,
+                code: "EMAIL_NOT_VERIFIED",
+                error: "Vérifie ton adresse e-mail avant de te connecter.",
+                email: user.email,
+            });
+        }
+
+        const session = createAuthSession(user.id);
+
+        if (!session) {
+            return res.status(403).json({
+                success: false,
+                error: "La connexion à ce compte n’est pas disponible.",
+            });
+        }
+
+        return res.json({
+            success: true,
+            token: session.token,
+            expiresAt: session.expiresAt,
+            user: findUserById(user.id),
+        });
+    } catch {
+        console.error("Échec de la connexion.");
+
+        return res.status(500).json({
+            success: false,
+            error: "Impossible de se connecter pour le moment.",
+        });
+    }
+});
 
 module.exports = router;
