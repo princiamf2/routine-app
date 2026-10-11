@@ -1,18 +1,20 @@
 const express = require("express");
-const {
-    addEvent,
-    getAllEvents,
-} = require("../data/eventsStore");
+const { addEvent, getAllEvents, } = require("../data/eventsStore");
+const { validateEventPayload, } = require("../services/eventValidationService");
 
 const router = express.Router();
 
 router.post("/", (req, res) => {
-    const event = addEvent(req.body);
+    const validation = validateEventPayload(req.body);
 
-    console.log("New event:", event);
+    if (validation.error)
+        return res.status(400).json({ success: false, error: validation.error, });
+
+    const event = addEvent(validation.event);
+
 
     res.status(201).json({
-        sucess: true,
+        success: true,
         event,
     });
 });

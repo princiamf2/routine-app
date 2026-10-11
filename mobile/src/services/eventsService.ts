@@ -36,6 +36,8 @@ export async function sendActionCompletedEvent(feedbackValue: number, feedbackTe
       feedbackText,
     }),
   });
+  if (!response.ok)
+    throw new Error("Impossible d'enregistrer la séance.");
 
   return response.json();
 }
