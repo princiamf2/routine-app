@@ -49,4 +49,31 @@ db.exec(`
     ON auth_sessions(expiresAt);
 `);
 
+const userColumns = db.prepare("PRAGMA table_info(users)").all();
+const hasEmailVerifiedAt = userColumns.some(
+  (column) => column.name === "emailVerifiedAt"
+);
+
+if (!hasEmailVerifiedAt) {
+  db.prepare(
+    "ALTER TABLE users ADD COLUMN emailVerifiedAt INTEGER"
+  ).run();
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS email_verifications (
+    userId TEXT PRIMARY KEY NOT NULL,
+    codeHash TEXT NOT NULL CHECK (length(codeHash) = 64),
+    createdAt INTEGER NOT NULL,
+    expiresAt INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0
+      CHECK (attempts >= 0 AND attempts <= 5),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    CHECK (expiresAt > createdAt)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_email_verifications_expiration
+    ON email_verifications(expiresAt);
+`);
+
 module.exports = db;
