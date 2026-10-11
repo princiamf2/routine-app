@@ -18,7 +18,9 @@ const {
 } = require("../middleware/authRateLimit");
 const {
     createAuthSession,
+    revokeAuthSession,
 } = require("../services/authSessionService");
+const { requireAuth } = require("../middleware/requireAuth");
 
 const router = express.Router();
 
@@ -265,6 +267,31 @@ router.post("/login", loginLimiter, async (req, res) => {
         return res.status(500).json({
             success: false,
             error: "Impossible de se connecter pour le moment.",
+        });
+    }
+});
+
+router.get("/me", requireAuth, (req, res) => {
+    return res.json({
+        success: true,
+        user: req.user,
+    });
+});
+
+router.post("/logout", requireAuth, (req, res) => {
+    try {
+        revokeAuthSession(req.authToken);
+
+        return res.json({
+            success: true,
+            message: "Déconnexion effectuée.",
+        });
+    } catch {
+        console.error("Échec de la suppression de la session.");
+
+        return res.status(500).json({
+            success: false,
+            error: "Impossible de fermer la session pour le moment.",
         });
     }
 });
