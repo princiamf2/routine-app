@@ -119,6 +119,7 @@ export default function FeedbackScreen() {
             value={feedbackText}
             onChangeText={setFeedbackText}
             multiline
+            maxLength={2000}
             editable={!isSubmitting && !completionSentRef.current}
           />
         </View>
