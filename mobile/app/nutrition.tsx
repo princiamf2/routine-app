@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Image,
@@ -15,11 +15,9 @@ import { nutritionProgram } from "@/src/data/program";
 import { getCurrentDay } from "@/src/storage/programStorage";
 
 export default function NutritionScreen() {
-  const params = useLocalSearchParams();
-  const previewDay = params.day ? Number(params.day) : null;
   const [currentDay, setCurrentDay] = useState(1);
 
-  const displayedDay = previewDay ?? currentDay;
+  const displayedDay = currentDay;
   const todayNutrition = nutritionProgram.find((p) => p.day === displayedDay);
 
   useEffect(() => {

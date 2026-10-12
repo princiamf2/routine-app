@@ -10,8 +10,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 export default function FeedbackScreen() {
   const params = useLocalSearchParams();
-  const previewDay = params.day ? Number(params.day) : null;
-  const isPreviewMode = params.preview === "true";
+  const sessionDay = params.day ? Number(params.day) : null;
   const [feedback, setFeedback] = useState(5);
   const [feedbackText, setFeedbackText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,21 +26,19 @@ export default function FeedbackScreen() {
     setSubmitError("");
 
     try {
-      if (!isPreviewMode) {
-        const alreadyDone = await hasCompletedToday();
+      const alreadyDone = await hasCompletedToday();
 
-        if (alreadyDone) {
-          router.replace("/");
-          return;
-        }
-
-        if (!completionSentRef.current) {
-          await sendActionCompletedEvent(feedback, feedbackText);
-          completionSentRef.current = true;
-        }
-
-        await markCompletedToday();
+      if (alreadyDone) {
+        router.replace("/");
+        return;
       }
+
+      if (!completionSentRef.current) {
+        await sendActionCompletedEvent(feedback, feedbackText);
+        completionSentRef.current = true;
+      }
+
+      await markCompletedToday();
 
       const analysis = analyzeMovementMessage(feedbackText);
 
@@ -53,8 +50,7 @@ export default function FeedbackScreen() {
       router.replace({
         pathname: "/success",
         params: {
-          day: previewDay ?? "",
-          preview: isPreviewMode ? "true" : "false",
+          day: sessionDay ?? "",
         },
       });
     } catch (error) {
@@ -140,9 +136,7 @@ export default function FeedbackScreen() {
           <Text style={styles.buttonText}>
             {isSubmitting
               ? "Validation en cours…"
-              : isPreviewMode
-                ? "Continuer la prévisualisation"
-                : "Valider mon ressenti"}
+              : "Valider mon ressenti"}
           </Text>
         </Pressable>
       </Animated.View>
