@@ -4,7 +4,7 @@ import {
   logoutPatient,
   type AuthUser,
 } from "./authService";
-import { ApiError } from "./apiClient";
+import { ApiError, setSessionRejectedHandler } from "./apiClient";
 import {
   getAuthToken,
   saveAuthToken,
@@ -28,6 +28,7 @@ const initialSnapshot: AuthSnapshot = {
 let snapshot: AuthSnapshot = initialSnapshot;
 let operationRunning = false;
 const listeners = new Set<() => void>();
+const rejectedTokens = new Set<string>();
 
 function publish(next: AuthSnapshot): void {
   snapshot = next;
@@ -61,9 +62,48 @@ function beginOperation(): void {
   publish({ ...snapshot, isBusy: true });
 }
 
+async function processRejectedSessions(): Promise<void> {
+  if (operationRunning || rejectedTokens.size === 0) {
+    return;
+  }
+
+  beginOperation();
+
+  const tokensToCheck = new Set(rejectedTokens);
+  rejectedTokens.clear();
+
+  try {
+    const currentToken = await getAuthToken();
+
+    // Une réponse concernant une ancienne session ne ferme pas
+    // la session qui l'a remplacée.
+    if (!currentToken || !tokensToCheck.has(currentToken)) {
+      return;
+    }
+
+    // Masque les écrans privés pendant la suppression du jeton.
+    publish({
+      status: "loading",
+      user: null,
+      error: null,
+      isBusy: true,
+    });
+
+    await clearAuthToken();
+    publishUser(null);
+  } catch {
+    publishError(
+      "Impossible de vérifier ou de supprimer la session refusée. Réessaie."
+    );
+  } finally {
+    finishOperation();
+  }
+}
+
 function finishOperation(): void {
   operationRunning = false;
   publish({ ...snapshot, isBusy: false });
+  void processRejectedSessions();
 }
 
 export function getAuthSnapshot(): AuthSnapshot {
@@ -180,3 +220,8 @@ export async function signOut(): Promise<void> {
     finishOperation();
   }
 }
+
+setSessionRejectedHandler((token) => {
+  rejectedTokens.add(token);
+  void processRejectedSessions();
+});

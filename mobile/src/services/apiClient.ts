@@ -1,6 +1,15 @@
 import { API_URL } from "../config/api";
 import { getAuthToken } from "../storage/authTokenStorage";
 
+type SessionRejectedHandler = (token: string) => void;
+
+let sessionRejectedHandler: SessionRejectedHandler | null = null;
+
+export function setSessionRejectedHandler(
+  handler: SessionRejectedHandler
+): void {
+  sessionRejectedHandler = handler;
+}
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -43,14 +52,12 @@ export async function apiRequest<T>(
     headers["Content-Type"] = "application/json";
   }
 
+  let requestToken: string | null = null;
   if (authenticated) {
-    const token = await getAuthToken();
-
-    if (!token) {
-      throw new ApiError("Connecte-toi pour continuer.", 401);
-    }
-
-    headers.Authorization = `Bearer ${token}`;
+    requestToken = await getAuthToken();
+    if (!requestToken)
+        throw new ApiError("Connecte-toi pour continuer.", 401);
+    headers.Authorization = `Bearer ${requestToken}`;
   }
 
   const controller = new AbortController();
@@ -64,6 +71,8 @@ export async function apiRequest<T>(
       signal: controller.signal,
     });
 
+    if (response.status === 401 && requestToken !== null)
+        sessionRejectedHandler?.(requestToken);
     const text = await response.text();
     let data: unknown = null;
 
