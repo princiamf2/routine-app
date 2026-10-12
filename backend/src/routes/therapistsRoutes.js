@@ -1,7 +1,9 @@
 const express = require("express");
 const { findNearbyTherapists } = require("../services/therapistsService");
+const { requireAuth } = require("../middleware/requireAuth");
 
 const router = express.Router();
+router.use(requireAuth);
 
 router.get("/nearby", async (req, res) => {
   try {

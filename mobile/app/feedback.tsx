@@ -7,11 +7,13 @@ import { sendActionCompletedEvent } from "@/src/services/eventsService";
 import { hasCompletedToday, markCompletedToday } from "@/src/storage/deviceStorage";
 import { analyzeMovementMessage } from "@/src/services/movementSafetyBot";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function FeedbackScreen() {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const params = useLocalSearchParams();
-  const previewDay = params.day ? Number(params.day) : null;
-  const isPreviewMode = params.preview === "true";
+  const sessionDay = params.day ? Number(params.day) : null;
   const [feedback, setFeedback] = useState(5);
   const [feedbackText, setFeedbackText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,28 +22,26 @@ export default function FeedbackScreen() {
   const completionSentRef = useRef(false);
 
   async function finishDay() {
-    if (submittingRef.current) return;
+    if (submittingRef.current || !userId) return;
 
     submittingRef.current = true;
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      if (!isPreviewMode) {
-        const alreadyDone = await hasCompletedToday();
+      const alreadyDone = await hasCompletedToday(userId);
 
-        if (alreadyDone) {
-          router.replace("/");
-          return;
-        }
-
-        if (!completionSentRef.current) {
-          await sendActionCompletedEvent(feedback, feedbackText);
-          completionSentRef.current = true;
-        }
-
-        await markCompletedToday();
+      if (alreadyDone) {
+        router.replace("/");
+        return;
       }
+
+      if (!completionSentRef.current) {
+        await sendActionCompletedEvent(feedback, feedbackText);
+        completionSentRef.current = true;
+      }
+
+      await markCompletedToday(userId);
 
       const analysis = analyzeMovementMessage(feedbackText);
 
@@ -53,8 +53,7 @@ export default function FeedbackScreen() {
       router.replace({
         pathname: "/success",
         params: {
-          day: previewDay ?? "",
-          preview: isPreviewMode ? "true" : "false",
+          day: sessionDay ?? "",
         },
       });
     } catch (error) {
@@ -140,9 +139,7 @@ export default function FeedbackScreen() {
           <Text style={styles.buttonText}>
             {isSubmitting
               ? "Validation en cours…"
-              : isPreviewMode
-                ? "Continuer la prévisualisation"
-                : "Valider mon ressenti"}
+              : "Valider mon ressenti"}
           </Text>
         </Pressable>
       </Animated.View>

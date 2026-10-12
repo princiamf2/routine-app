@@ -1,19 +1,21 @@
 const express = require("express");
 const { getEventsByUserId } = require("../data/eventsStore");
 const { buildUserAnalytics } = require("../services/analyticsService");
+const { requireAuth } = require("../middleware/requireAuth");
 
 const router = express.Router();
 
-router.get("/:userId", (req, res) => {
-  const userId = req.params.userId;
+router.use(requireAuth);
 
-  const userEvents = getEventsByUserId(userId);
-  const analytics = buildUserAnalytics(userEvents);
+router.get("/", (req, res) => {
+    const userId = req.user.id;
+    const userEvents = getEventsByUserId(userId);
+    const analytics = buildUserAnalytics(userEvents);
 
-  res.json({
-    userId,
-    ...analytics,
-  });
+    return res.json({
+        userId,
+        ...analytics,
+    });
 });
 
 module.exports = router;

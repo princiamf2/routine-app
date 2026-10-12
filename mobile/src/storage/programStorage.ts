@@ -1,19 +1,40 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAccountStorage } from "./accountStorage";
 
-export async function getCurrentDay() {
-  let startDate = await AsyncStorage.getItem("start_date");
+const pendingDays = new Map<string, Promise<number>>();
+
+async function readCurrentDay(userId: string): Promise<number> {
+  const storage = createAccountStorage(userId);
+  let startDate = await storage.getItem("start_date");
 
   if (!startDate) {
-    const now = new Date().toISOString();
-    await AsyncStorage.setItem("start_date", now);
-    startDate = now;
+    startDate = new Date().toISOString();
+    await storage.setItem("start_date", startDate);
   }
 
-  const start = new Date(startDate);
-  const today = new Date();
+  const startTime = new Date(startDate).getTime();
 
-  const diffTime = today.getTime() - start.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  if (!Number.isFinite(startTime)) {
+    throw new Error("La date de début du programme est invalide.");
+  }
 
-  return diffDays;
+  const elapsedDays = Math.floor(
+    (Date.now() - startTime) / (24 * 60 * 60 * 1000)
+  );
+
+  return Math.max(1, elapsedDays + 1);
+}
+
+export function getCurrentDay(userId: string): Promise<number> {
+  const pending = pendingDays.get(userId);
+
+  if (pending) {
+    return pending;
+  }
+
+  const request = readCurrentDay(userId).finally(() => {
+    pendingDays.delete(userId);
+  });
+
+  pendingDays.set(userId, request);
+  return request;
 }

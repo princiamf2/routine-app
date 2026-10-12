@@ -1,11 +1,12 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScrollView, View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { hasCompletedToday } from "@/src/storage/deviceStorage";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Colors } from "@/constants/theme";
 import { getCurrentDay } from "@/src/storage/programStorage";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AdaptiveSession,
   fetchAdaptiveSession,
@@ -60,9 +61,8 @@ function getLevelLabel(levels: string[]) {
 }
 
 export default function MovementScreen() {
-  const params = useLocalSearchParams();
-  const isPreviewMode = params.preview === "true";
-  const previewDay = isPreviewMode && params.day ? Number(params.day) : null;
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const sessionReadyRef = useRef(false);
 
   const [currentDay, setCurrentDay] = useState(1);
@@ -73,7 +73,7 @@ export default function MovementScreen() {
   const [isResting, setIsResting] = useState(false);
   const [restSecondsLeft, setRestSecondsLeft] = useState(0);
 
-  const displayedDay = previewDay ?? currentDay;
+  const displayedDay = currentDay;
   const currentExercise = session?.exercises[currentExerciseIndex];
   const isLastExercise =
     session && currentExerciseIndex === session.exercises.length - 1;
@@ -87,21 +87,21 @@ export default function MovementScreen() {
   };
 
   async function finishMovement() {
-    if (!session || loading || error) return;
-    if (!isPreviewMode) {
-      const alreadyDone = await hasCompletedToday();
-      if (alreadyDone) {
-        router.back();
-        return;
-      }
-      await clearMovementSessionProgress();
+    if (!userId || !session || loading || error) return;
+
+    const alreadyDone = await hasCompletedToday(userId);
+
+    if (alreadyDone) {
+      router.back();
+      return;
     }
+
+    await clearMovementSessionProgress(userId);
 
     router.push({
       pathname: "/feedback",
       params: {
         day: displayedDay,
-        preview: isPreviewMode ? "true" : "false",
       },
     });
   }
@@ -124,6 +124,7 @@ export default function MovementScreen() {
   }
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
     sessionReadyRef.current = false;
     async function loadSession() {
@@ -135,15 +136,11 @@ export default function MovementScreen() {
         setIsResting(false);
         setRestSecondsLeft(0);
 
-        const targetDay = isPreviewMode
-          ? previewDay ?? 1
-          : await getCurrentDay();
+        const targetDay = await getCurrentDay(userId);
         if (cancelled) return;
         const adaptiveSession = await fetchAdaptiveSession(targetDay);
         if (cancelled) return;
-        const savedProgress = isPreviewMode
-          ? null
-          : await getMovementSessionProgress();
+        const savedProgress = await getMovementSessionProgress(userId);
         if (cancelled) return;
         setCurrentDay(targetDay);
         setSession(adaptiveSession);
@@ -169,7 +166,7 @@ export default function MovementScreen() {
       cancelled = true;
       sessionReadyRef.current = false;
     };
-  }, [previewDay, isPreviewMode]);
+  }, [userId]);
 
   useEffect(() => {
     if (!isResting || restSecondsLeft <= 0) {
@@ -191,17 +188,17 @@ export default function MovementScreen() {
   }, [restSecondsLeft, isResting]);
 
   useEffect(() => {
-    if (!sessionReadyRef.current || !session || loading || isPreviewMode) {
+    if (!userId || !sessionReadyRef.current || !session || loading) {
       return;
     }
 
-    saveMovementSessionProgress({
+    saveMovementSessionProgress(userId, {
       day: displayedDay,
       currentExerciseIndex,
       isResting,
       restSecondsLeft,
     });
-  }, [session, loading, isPreviewMode, displayedDay, currentExerciseIndex, isResting, restSecondsLeft]);
+  }, [userId, session, loading, displayedDay, currentExerciseIndex, isResting, restSecondsLeft]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -211,7 +208,7 @@ export default function MovementScreen() {
       >
         <Animated.View entering={FadeInDown.duration(500)}>
           <Text style={styles.smallTitle}>
-            {isPreviewMode ? "Prévisualisation de la séance" : "Séance adaptée du jour"}
+            Séance adaptée du jour
           </Text>
 
           <Text style={styles.dayText}>
@@ -334,7 +331,6 @@ export default function MovementScreen() {
                   movementDescription: session
                     ? `${session.progression.series} séries × ${session.progression.reps} répétitions · repos ${session.progression.rest}`
                     : "",
-                  preview: isPreviewMode ? "true" : "false",
                 },
               })
             }

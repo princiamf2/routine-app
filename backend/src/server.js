@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const eventsRoutes = require("./routes/eventsRoutes");
@@ -5,7 +7,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const therapistsRoutes = require("./routes/therapistsRoutes");
 const coachRoutes= require("./routes/coachRoutes");
 const adaptiveProgramRoutes = require("./routes/adaptiveProgramRoutes");
-require("dotenv").config();
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = 3001;
@@ -17,6 +19,7 @@ app.get("/", (req, res) => {
   res.json({ status: "OK" });
 });
 
+app.use("/auth", authRoutes);
 app.use("/events", eventsRoutes);
 app.use("/analytics", analyticsRoutes);
 app.use("/therapists", therapistsRoutes);

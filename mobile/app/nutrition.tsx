@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Image,
@@ -13,19 +13,35 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
 import { nutritionProgram } from "@/src/data/program";
 import { getCurrentDay } from "@/src/storage/programStorage";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function NutritionScreen() {
-  const params = useLocalSearchParams();
-  const previewDay = params.day ? Number(params.day) : null;
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const [currentDay, setCurrentDay] = useState(1);
 
-  const displayedDay = previewDay ?? currentDay;
+  const displayedDay = currentDay;
   const todayNutrition = nutritionProgram.find((p) => p.day === displayedDay);
 
   useEffect(() => {
-    getCurrentDay().then(setCurrentDay);
-  }, []);
+    if (!userId) return;
 
+    let cancelled = false;
+
+    getCurrentDay(userId)
+      .then((day) => {
+        if (!cancelled) {
+          setCurrentDay(day);
+        }
+      })
+      .catch((error) => {
+        console.log("Erreur chargement du jour:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView

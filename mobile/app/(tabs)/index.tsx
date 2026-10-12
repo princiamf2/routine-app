@@ -8,23 +8,22 @@ import { nutritionImages } from "@/src/data/nutritionImages";
 import { Colors } from "@/constants/theme";
 import { getCurrentDay } from "@/src/storage/programStorage";
 import { hasCompletedToday } from "@/src/storage/deviceStorage";
+import { useAuth } from "@/hooks/use-auth";
 import Animated, {
   FadeInDown,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from "react-native-reanimated";
-import { resetAppStorage } from "@/src/storage/debugStorage";
 
 export default function HomeScreen() {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const [analytics, setAnalytics] = useState<any>(null);
   const [currentDay, setCurrentDay] = useState(1);
   const [completedToday, setCompletedToday] = useState(false);
-  const [previewDay, setPreviewDay] = useState<number | null>(null);
-  const [previewMode, setPreviewMode] = useState(false);
 
-  const isPreviewMode = previewMode;
-  const displayedDay = isPreviewMode ? previewDay ?? 1 : currentDay;
+  const displayedDay = currentDay;
   const todayMovement = movementsProgram.find((p) => p.day === displayedDay);
   const todayNutrition = nutritionProgram.find((p) => p.day === displayedDay);
   const movementImages: any = {
@@ -62,38 +61,22 @@ export default function HomeScreen() {
     }
   }
 
-  function togglePreviewMode() {
-    if (previewMode) {
-      setPreviewMode(false);
-      setPreviewDay(null);
-      return;
-    }
-
-    setPreviewMode(true);
-    setPreviewDay(currentDay);
-  }
-
-  async function handleResetApp() {
-    await resetAppStorage();
-    setCurrentDay(1);
-    setCompletedToday(false);
-    setPreviewDay(null);
-    setPreviewMode(false);
-    router.replace("/");
-  }
-
   useEffect(() => {
+    if (!userId) return;
+
     sendEvent();
-    getCurrentDay().then(setCurrentDay);
+    getCurrentDay(userId).then(setCurrentDay);
     loadAnalytics();
-    hasCompletedToday().then(setCompletedToday);
-  }, []);
+    hasCompletedToday(userId).then(setCompletedToday);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
-      hasCompletedToday().then(setCompletedToday);
+      if (!userId) return;
+
+      hasCompletedToday(userId).then(setCompletedToday);
       loadAnalytics();
-    }, [])
+    }, [userId])
   );
 
   return (
@@ -143,13 +126,7 @@ export default function HomeScreen() {
                 nutritionScale.value = withSpring(1);
               }}
               onPress={() =>
-                router.push({
-                  pathname: "/nutrition",
-                  params: {
-                    day: displayedDay,
-                    preview: isPreviewMode ? "true" : "false",
-                  },
-                })
+                router.push("/nutrition")
               }
             >
               <Image
@@ -179,7 +156,7 @@ export default function HomeScreen() {
             <Pressable
               style={[
                 styles.heroCard,
-                completedToday && !isPreviewMode && styles.cardDisabled,
+                completedToday && styles.cardDisabled,
               ]}
               onPressIn={() => {
                 movementScale.value = withSpring(0.97);
@@ -188,15 +165,9 @@ export default function HomeScreen() {
                 movementScale.value = withSpring(1);
               }}
               onPress={() =>
-                router.push({
-                  pathname: "/movement",
-                  params: {
-                    day: displayedDay,
-                    preview: isPreviewMode ? "true" : "false",
-                  },
-                })
+                router.push("/movement")
               }
-              disabled={completedToday && !isPreviewMode}
+              disabled={completedToday}
             >
               <Image
                 source={
@@ -229,7 +200,6 @@ export default function HomeScreen() {
                     day: displayedDay,
                     movementTitle: todayMovement?.movementTitle ?? "",
                     movementDescription: todayMovement?.movementDescription ?? "",
-                    preview: isPreviewMode ? "true" : "false",
                   },
                 })
               }
@@ -261,53 +231,11 @@ export default function HomeScreen() {
         </Animated.View>
       </View>
 
-      {completedToday && !isPreviewMode && (
+      {completedToday && (
         <Text style={styles.completedText}>
           Journée validée avec succès.
         </Text>
       )}
-
-      <Pressable
-        style={[
-          styles.previewToggle,
-          isPreviewMode && styles.previewToggleActive,
-        ]}
-        onPress={togglePreviewMode}
-      >
-        <Text
-          style={[
-            styles.previewToggleText,
-            isPreviewMode && styles.previewToggleTextActive,
-          ]}
-        >
-          {isPreviewMode ? "Quitter le mode aperçu" : "Mode aperçu"}
-        </Text>
-      </Pressable>
-
-      {isPreviewMode && (
-        <View style={styles.previewControls}>
-          <Pressable
-            style={styles.previewButton}
-            onPress={() =>
-              setPreviewDay((prev) => Math.max(1, (prev ?? currentDay) - 1))
-            }
-          >
-            <Text style={styles.previewButtonText}>Jour précédent</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.previewButton}
-            onPress={() =>
-              setPreviewDay((prev) => Math.min(30, (prev ?? currentDay) + 1))
-            }
-          >
-            <Text style={styles.previewButtonText}>Jour suivant</Text>
-          </Pressable>
-        </View>
-      )}
-      <Pressable style={styles.resetButton} onPress={handleResetApp}>
-        <Text style={styles.resetButtonText}>Réinitialiser l’application</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -435,49 +363,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  previewToggle: {
-    marginTop: 26,
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    alignItems: "center",
-  },
-
-  previewToggleActive: {
-    backgroundColor: Colors.light.primary,
-  },
-
-  previewToggleText: {
-    color: Colors.light.primary,
-    fontSize: 15,
-    fontWeight: "800",
-  },
-
-  previewToggleTextActive: {
-    color: "white",
-  },
-
-  previewControls: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 16,
-  },
-
-  previewButton: {
-    flex: 1,
-    backgroundColor: Colors.light.soft,
-    paddingVertical: 12,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-
-  previewButtonText: {
-    color: Colors.light.primary,
-    fontWeight: "800",
-  },
-
   heroCard: {
     height: 240,
     borderRadius: 30,
@@ -595,17 +480,5 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.45)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
-  },
-
-  resetButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-
-  resetButtonText: {
-    color: Colors.light.secondaryText,
-    fontSize: 13,
-    fontWeight: "700",
   },
 });

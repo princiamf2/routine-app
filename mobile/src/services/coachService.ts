@@ -1,4 +1,4 @@
-import { API_URL } from "../config/api";
+import { apiRequest } from "./apiClient";
 
 export type CoachLevel = "green" | "yellow" | "red" | "emergency";
 
@@ -22,24 +22,15 @@ export async function sendCoachMessage(
   message: string,
   history: CoachHistoryMessage[],
   movementTitle?: string,
-  movementDescription?: string
+  movementDescription?: string,
 ): Promise<CoachResponse> {
-  const response = await fetch(`${API_URL}/coach/message`, {
+  return apiRequest<CoachResponse>("/coach/message", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+    body: {
       message,
       history,
       movementTitle,
       movementDescription,
-    }),
+    },
   });
-
-  if (!response.ok) {
-    throw new Error("Erreur pendant l’analyse du message");
-  }
-
-  return response.json();
 }
