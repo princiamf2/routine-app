@@ -8,6 +8,7 @@ import { nutritionImages } from "@/src/data/nutritionImages";
 import { Colors } from "@/constants/theme";
 import { getCurrentDay } from "@/src/storage/programStorage";
 import { hasCompletedToday } from "@/src/storage/deviceStorage";
+import { useAuth } from "@/hooks/use-auth";
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -16,6 +17,8 @@ import Animated, {
 } from "react-native-reanimated";
 
 export default function HomeScreen() {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const [analytics, setAnalytics] = useState<any>(null);
   const [currentDay, setCurrentDay] = useState(1);
   const [completedToday, setCompletedToday] = useState(false);
@@ -59,17 +62,21 @@ export default function HomeScreen() {
   }
 
   useEffect(() => {
+    if (!userId) return;
+
     sendEvent();
-    getCurrentDay().then(setCurrentDay);
+    getCurrentDay(userId).then(setCurrentDay);
     loadAnalytics();
-    hasCompletedToday().then(setCompletedToday);
-  }, []);
+    hasCompletedToday(userId).then(setCompletedToday);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
-      hasCompletedToday().then(setCompletedToday);
+      if (!userId) return;
+
+      hasCompletedToday(userId).then(setCompletedToday);
       loadAnalytics();
-    }, [])
+    }, [userId])
   );
 
   return (

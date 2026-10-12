@@ -2,10 +2,11 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScrollView, View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { hasCompletedToday } from "@/src/storage/deviceStorage";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Colors } from "@/constants/theme";
 import { getCurrentDay } from "@/src/storage/programStorage";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AdaptiveSession,
   fetchAdaptiveSession,
@@ -60,6 +61,8 @@ function getLevelLabel(levels: string[]) {
 }
 
 export default function MovementScreen() {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const sessionReadyRef = useRef(false);
 
   const [currentDay, setCurrentDay] = useState(1);
@@ -84,16 +87,16 @@ export default function MovementScreen() {
   };
 
   async function finishMovement() {
-    if (!session || loading || error) return;
+    if (!userId || !session || loading || error) return;
 
-    const alreadyDone = await hasCompletedToday();
+    const alreadyDone = await hasCompletedToday(userId);
 
     if (alreadyDone) {
       router.back();
       return;
     }
 
-    await clearMovementSessionProgress();
+    await clearMovementSessionProgress(userId);
 
     router.push({
       pathname: "/feedback",
@@ -121,6 +124,7 @@ export default function MovementScreen() {
   }
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
     sessionReadyRef.current = false;
     async function loadSession() {
@@ -132,11 +136,11 @@ export default function MovementScreen() {
         setIsResting(false);
         setRestSecondsLeft(0);
 
-        const targetDay = await getCurrentDay();
+        const targetDay = await getCurrentDay(userId);
         if (cancelled) return;
         const adaptiveSession = await fetchAdaptiveSession(targetDay);
         if (cancelled) return;
-        const savedProgress = await getMovementSessionProgress();
+        const savedProgress = await getMovementSessionProgress(userId);
         if (cancelled) return;
         setCurrentDay(targetDay);
         setSession(adaptiveSession);
@@ -162,7 +166,7 @@ export default function MovementScreen() {
       cancelled = true;
       sessionReadyRef.current = false;
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!isResting || restSecondsLeft <= 0) {
@@ -184,17 +188,17 @@ export default function MovementScreen() {
   }, [restSecondsLeft, isResting]);
 
   useEffect(() => {
-    if (!sessionReadyRef.current || !session || loading) {
+    if (!userId || !sessionReadyRef.current || !session || loading) {
       return;
     }
 
-    saveMovementSessionProgress({
+    saveMovementSessionProgress(userId, {
       day: displayedDay,
       currentExerciseIndex,
       isResting,
       restSecondsLeft,
     });
-  }, [session, loading, displayedDay, currentExerciseIndex, isResting, restSecondsLeft]);
+  }, [userId, session, loading, displayedDay, currentExerciseIndex, isResting, restSecondsLeft]);
 
   return (
     <SafeAreaView style={styles.container}>

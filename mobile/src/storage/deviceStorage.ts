@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAccountStorage } from "./accountStorage";
 
 let deviceIdPromise: Promise<string> | null = null;
 
@@ -21,17 +22,17 @@ export function getDeviceId(): Promise<string> {
   return deviceIdPromise;
 }
 
-export async function hasCompletedToday() {
+export async function hasCompletedToday(userId: string) {
+  const storage = createAccountStorage(userId);
   const today = new Date().toISOString().slice(0, 10);
-  const key = "completed_" + today;
 
-  const value = await AsyncStorage.getItem(key);
+  const value = await storage.getItem(`completed_${today}`);
   return value === "true";
 }
 
-export async function markCompletedToday() {
+export async function markCompletedToday(userId: string) {
+  const storage = createAccountStorage(userId);
   const today = new Date().toISOString().slice(0, 10);
-  const key = "completed_" + today;
 
-  await AsyncStorage.setItem(key, "true");
+  await storage.setItem(`completed_${today}`, "true");
 }

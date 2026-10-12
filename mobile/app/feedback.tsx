@@ -7,8 +7,11 @@ import { sendActionCompletedEvent } from "@/src/services/eventsService";
 import { hasCompletedToday, markCompletedToday } from "@/src/storage/deviceStorage";
 import { analyzeMovementMessage } from "@/src/services/movementSafetyBot";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function FeedbackScreen() {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const params = useLocalSearchParams();
   const sessionDay = params.day ? Number(params.day) : null;
   const [feedback, setFeedback] = useState(5);
@@ -19,14 +22,14 @@ export default function FeedbackScreen() {
   const completionSentRef = useRef(false);
 
   async function finishDay() {
-    if (submittingRef.current) return;
+    if (submittingRef.current || !userId) return;
 
     submittingRef.current = true;
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const alreadyDone = await hasCompletedToday();
+      const alreadyDone = await hasCompletedToday(userId);
 
       if (alreadyDone) {
         router.replace("/");
@@ -38,7 +41,7 @@ export default function FeedbackScreen() {
         completionSentRef.current = true;
       }
 
-      await markCompletedToday();
+      await markCompletedToday(userId);
 
       const analysis = analyzeMovementMessage(feedbackText);
 

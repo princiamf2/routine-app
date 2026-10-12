@@ -1,43 +1,41 @@
-import { API_URL } from "../config/api";
-import { getDeviceId } from "../storage/deviceStorage";
+import { apiRequest } from "./apiClient";
 
-export async function sendAppOpenedEvent() {
-  const deviceId = await getDeviceId();
+export type EventResponse = {
+  success: boolean;
+  event: {
+    id: number;
+    userId: string;
+    date: string;
+    appOpened: boolean;
+    actionCompleted: boolean;
+    feedbackValue: number | null;
+    feedbackText: string | null;
+    receivedAt: string;
+  };
+};
 
-  const response = await fetch(`${API_URL}/events`, {
+export async function sendAppOpenedEvent(): Promise<EventResponse> {
+  return apiRequest<EventResponse>("/events", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      userId: deviceId,
+    body: {
       date: new Date().toISOString().slice(0, 10),
       appOpened: true,
-    }),
+    },
   });
-
-  return response.json();
 }
 
-export async function sendActionCompletedEvent(feedbackValue: number, feedbackText: string) {
-  const deviceId = await getDeviceId();
-
-  const response = await fetch(`${API_URL}/events`, {
+export async function sendActionCompletedEvent(
+  feedbackValue: number,
+  feedbackText: string,
+): Promise<EventResponse> {
+  return apiRequest<EventResponse>("/events", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      userId: deviceId,
+    body: {
       date: new Date().toISOString().slice(0, 10),
       appOpened: false,
       actionCompleted: true,
       feedbackValue,
       feedbackText,
-    }),
+    },
   });
-  if (!response.ok)
-    throw new Error("Impossible d'enregistrer la séance.");
-
-  return response.json();
 }

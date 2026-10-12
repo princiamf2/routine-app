@@ -1,5 +1,4 @@
-import { API_URL } from "../config/api";
-import { getDeviceId } from "../storage/deviceStorage";
+import { apiRequest } from "./apiClient";
 
 export type AdaptiveExercise = {
   id: number;
@@ -26,16 +25,12 @@ export type AdaptiveSession = {
   exercises: AdaptiveExercise[];
 };
 
-export async function fetchAdaptiveSession(day: number): Promise<AdaptiveSession> {
-  if (!Number.isSafeInteger(day) || day < 1)
+export async function fetchAdaptiveSession(
+  day: number,
+): Promise<AdaptiveSession> {
+  if (!Number.isSafeInteger(day) || day < 1) {
     throw new Error("Le jour doit être un entier positif valide.");
-  const deviceId = await getDeviceId();
-
-  const response = await fetch(`${API_URL}/adaptive-session/${deviceId}?day=${day}`);
-
-  if (!response.ok) {
-    throw new Error("Impossible de charger la séance adaptée");
   }
 
-  return response.json();
+  return apiRequest<AdaptiveSession>(`/adaptive-session?day=${day}`);
 }
